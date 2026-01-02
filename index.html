@@ -3,192 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Camera Color Picker</title>
-
+<title>Tải ảnh & video Facebook</title>
 <style>
-body {
-    margin: 0;
-    background: black;
-    font-family: Arial, sans-serif;
-    overflow: hidden;
-}
-
-video {
-    position: fixed;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-}
-
-canvas { display: none; }
-
-/* TÂM NGẮM */
-.crosshair {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: 34px;
-    height: 34px;
-    transform: translate(-50%, -50%);
-    border: 2px solid red;
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-.crosshair::before,
-.crosshair::after {
-    content: "";
-    position: absolute;
-    background: red;
-}
-
-.crosshair::before {
-    width: 2px;
-    height: 34px;
-    left: 50%;
-    top: 0;
-    transform: translateX(-50%);
-}
-
-.crosshair::after {
-    height: 2px;
-    width: 34px;
-    top: 50%;
-    left: 0;
-    transform: translateY(-50%);
-}
-
-/* BẢNG THÔNG TIN */
-.info {
-    position: fixed;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.7);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 10px;
-    text-align: center;
-    font-size: 14px;
-}
-
-.color-box {
-    width: 40px;
-    height: 40px;
-    margin: 5px auto;
-    border-radius: 6px;
-    border: 1px solid white;
-}
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+  input, button { padding: 10px; margin: 5px 0; width: 100%; }
+  img, video { max-width: 100%; margin-top: 20px; }
 </style>
 </head>
 <body>
+<h2>Tải ảnh & video Facebook</h2>
+<input type="text" id="fbLink" placeholder="Dán link Facebook ở đây">
+<button onclick="downloadFB()">Tải</button>
 
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas"></canvas>
-
-<div class="crosshair"></div>
-
-<div class="info">
-    <div class="color-box" id="colorBox"></div>
-    <div id="colorName">Màu: --</div>
-    <div id="hex">HEX: --</div>
-    <div id="rgb">RGB: --</div>
-</div>
+<div id="output"></div>
 
 <script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+async function downloadFB() {
+    const link = document.getElementById('fbLink').value.trim();
+    const output = document.getElementById('output');
+    output.innerHTML = 'Đang kiểm tra link...';
 
-const colorNameEl = document.getElementById("colorName");
-const hexEl = document.getElementById("hex");
-const rgbEl = document.getElementById("rgb");
-const colorBox = document.getElementById("colorBox");
+    // Facebook không cho phép fetch trực tiếp, cần dùng API trung gian.
+    // Ví dụ: dùng dịch vụ miễn phí của 3rd party (chỉ demo)
+    const apiUrl = 'https://fbdownloader.online/api?url=' + encodeURIComponent(link);
 
-/* BẬT CAMERA SAU */
-navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "environment" }
-}).then(stream => {
-    video.srcObject = stream;
-}).catch(err => {
-    alert("Không mở được camera: " + err);
-});
+    try {
+        const res = await fetch(apiUrl);
+        const data = await res.json();
 
-/* LẤY MÀU Ở TÂM */
-function getCenterColor() {
-    if (!video.videoWidth) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const x = Math.floor(canvas.width / 2);
-    const y = Math.floor(canvas.height / 2);
-
-    const pixel = ctx.getImageData(x, y, 1, 1).data;
-    const r = pixel[0];
-    const g = pixel[1];
-    const b = pixel[2];
-
-    const hex = rgbToHex(r, g, b);
-    const name = getColorName(r, g, b);
-
-    colorBox.style.background = hex;
-    colorNameEl.innerText = "Màu: " + name;
-    hexEl.innerText = "HEX: " + hex;
-    rgbEl.innerText = `RGB: ${r}, ${g}, ${b}`;
-}
-
-/* RGB → HEX */
-function rgbToHex(r, g, b) {
-    return "#" + [r, g, b].map(v =>
-        v.toString(16).padStart(2, "0")
-    ).join("");
-}
-
-/* TÊN MÀU (HSL – CHUẨN HƠN) */
-function getColorName(r, g, b) {
-    let r1 = r / 255, g1 = g / 255, b1 = b / 255;
-    let max = Math.max(r1, g1, b1);
-    let min = Math.min(r1, g1, b1);
-    let h, s, l = (max + min) / 2;
-
-    if (max === min) {
-        h = s = 0;
-    } else {
-        let d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-            case r1: h = (g1 - b1) / d + (g1 < b1 ? 6 : 0); break;
-            case g1: h = (b1 - r1) / d + 2; break;
-            case b1: h = (r1 - g1) / d + 4; break;
+        if (data.status === 'success') {
+            output.innerHTML = '';
+            if (data.type === 'video') {
+                const video = document.createElement('video');
+                video.src = data.downloadUrl;
+                video.controls = true;
+                output.appendChild(video);
+            } else if (data.type === 'image') {
+                const img = document.createElement('img');
+                img.src = data.downloadUrl;
+                output.appendChild(img);
+            }
+        } else {
+            output.innerHTML = 'Không thể tải. Link có thể không công khai.';
         }
-        h /= 6;
+    } catch (e) {
+        output.innerHTML = 'Lỗi: ' + e.message;
     }
-
-    h = h * 360;
-    s = s * 100;
-    l = l * 100;
-
-    if (l < 10) return "Đen";
-    if (l > 90) return "Trắng";
-    if (s < 10) return "Xám";
-
-    if (h < 15) return "Đỏ";
-    if (h < 45) return "Cam";
-    if (h < 70) return "Vàng";
-    if (h < 160) return "Xanh lá";
-    if (h < 200) return "Xanh lục lam";
-    if (h < 260) return "Xanh dương";
-    if (h < 300) return "Tím";
-    if (h < 340) return "Hồng";
-    return "Đỏ";
 }
-
-/* CẬP NHẬT LIÊN TỤC */
-setInterval(getCenterColor, 200);
 </script>
-
 </body>
 </html>
