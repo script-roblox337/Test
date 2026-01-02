@@ -6,84 +6,79 @@
 <title>Camera Color Picker</title>
 
 <style>
-    body {
-        margin: 0;
-        overflow: hidden;
-        background: black;
-        font-family: Arial, sans-serif;
-    }
+body {
+    margin: 0;
+    background: black;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
 
-    video {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        object-fit: cover;
-    }
+video {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+}
 
-    canvas {
-        display: none;
-    }
+canvas { display: none; }
 
-    /* TÂM ĐỎ */
-    .crosshair {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        width: 30px;
-        height: 30px;
-        transform: translate(-50%, -50%);
-        border: 2px solid red;
-        border-radius: 50%;
-        box-sizing: border-box;
-        pointer-events: none;
-    }
+/* TÂM NGẮM */
+.crosshair {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 34px;
+    height: 34px;
+    transform: translate(-50%, -50%);
+    border: 2px solid red;
+    border-radius: 50%;
+    pointer-events: none;
+}
 
-    .crosshair::before,
-    .crosshair::after {
-        content: "";
-        position: absolute;
-        background: red;
-    }
+.crosshair::before,
+.crosshair::after {
+    content: "";
+    position: absolute;
+    background: red;
+}
 
-    .crosshair::before {
-        width: 2px;
-        height: 30px;
-        left: 50%;
-        top: 0;
-        transform: translateX(-50%);
-    }
+.crosshair::before {
+    width: 2px;
+    height: 34px;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+}
 
-    .crosshair::after {
-        height: 2px;
-        width: 30px;
-        top: 50%;
-        left: 0;
-        transform: translateY(-50%);
-    }
+.crosshair::after {
+    height: 2px;
+    width: 34px;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+}
 
-    /* BẢNG THÔNG TIN */
-    .info {
-        position: fixed;
-        bottom: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 10px 15px;
-        border-radius: 10px;
-        text-align: center;
-        font-size: 14px;
-    }
+/* BẢNG THÔNG TIN */
+.info {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 14px;
+}
 
-    .color-box {
-        width: 40px;
-        height: 40px;
-        margin: 5px auto;
-        border-radius: 6px;
-        border: 1px solid white;
-    }
+.color-box {
+    width: 40px;
+    height: 40px;
+    margin: 5px auto;
+    border-radius: 6px;
+    border: 1px solid white;
+}
 </style>
 </head>
 <body>
@@ -110,7 +105,7 @@ const hexEl = document.getElementById("hex");
 const rgbEl = document.getElementById("rgb");
 const colorBox = document.getElementById("colorBox");
 
-// BẬT CAMERA
+/* BẬT CAMERA SAU */
 navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment" }
 }).then(stream => {
@@ -119,15 +114,17 @@ navigator.mediaDevices.getUserMedia({
     alert("Không mở được camera: " + err);
 });
 
-// LẤY MÀU Ở TÂM
+/* LẤY MÀU Ở TÂM */
 function getCenterColor() {
+    if (!video.videoWidth) return;
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const x = canvas.width / 2;
-    const y = canvas.height / 2;
+    const x = Math.floor(canvas.width / 2);
+    const y = Math.floor(canvas.height / 2);
 
     const pixel = ctx.getImageData(x, y, 1, 1).data;
     const r = pixel[0];
@@ -143,27 +140,53 @@ function getCenterColor() {
     rgbEl.innerText = `RGB: ${r}, ${g}, ${b}`;
 }
 
-// RGB → HEX
+/* RGB → HEX */
 function rgbToHex(r, g, b) {
-    return "#" + [r, g, b].map(x =>
-        x.toString(16).padStart(2, "0")
+    return "#" + [r, g, b].map(v =>
+        v.toString(16).padStart(2, "0")
     ).join("");
 }
 
-// TÊN MÀU (đơn giản, ước lượng)
+/* TÊN MÀU (HSL – CHUẨN HƠN) */
 function getColorName(r, g, b) {
-    if (r > 200 && g < 80 && b < 80) return "Đỏ";
-    if (r < 80 && g > 200 && b < 80) return "Xanh lá";
-    if (r < 80 && g < 80 && b > 200) return "Xanh dương";
-    if (r > 200 && g > 200 && b < 80) return "Vàng";
-    if (r > 200 && g < 80 && b > 200) return "Hồng";
-    if (r < 80 && g > 200 && b > 200) return "Cyan";
-    if (r > 200 && g > 200 && b > 200) return "Trắng";
-    if (r < 50 && g < 50 && b < 50) return "Đen";
-    return "Không xác định";
+    let r1 = r / 255, g1 = g / 255, b1 = b / 255;
+    let max = Math.max(r1, g1, b1);
+    let min = Math.min(r1, g1, b1);
+    let h, s, l = (max + min) / 2;
+
+    if (max === min) {
+        h = s = 0;
+    } else {
+        let d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r1: h = (g1 - b1) / d + (g1 < b1 ? 6 : 0); break;
+            case g1: h = (b1 - r1) / d + 2; break;
+            case b1: h = (r1 - g1) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    h = h * 360;
+    s = s * 100;
+    l = l * 100;
+
+    if (l < 10) return "Đen";
+    if (l > 90) return "Trắng";
+    if (s < 10) return "Xám";
+
+    if (h < 15) return "Đỏ";
+    if (h < 45) return "Cam";
+    if (h < 70) return "Vàng";
+    if (h < 160) return "Xanh lá";
+    if (h < 200) return "Xanh lục lam";
+    if (h < 260) return "Xanh dương";
+    if (h < 300) return "Tím";
+    if (h < 340) return "Hồng";
+    return "Đỏ";
 }
 
-// CẬP NHẬT LIÊN TỤC
+/* CẬP NHẬT LIÊN TỤC */
 setInterval(getCenterColor, 200);
 </script>
 
