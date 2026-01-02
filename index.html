@@ -2,54 +2,50 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
+<title>Facebook Downloader</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tải ảnh & video Facebook</title>
 <style>
-  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
-  input, button { padding: 10px; margin: 5px 0; width: 100%; }
-  img, video { max-width: 100%; margin-top: 20px; }
+body {
+  font-family: Arial;
+  background: #f2f2f2;
+  padding: 20px;
+}
+.box {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+}
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+}
+video, img {
+  max-width: 100%;
+  margin-top: 15px;
+}
 </style>
 </head>
 <body>
-<h2>Tải ảnh & video Facebook</h2>
-<input type="text" id="fbLink" placeholder="Dán link Facebook ở đây">
-<button onclick="downloadFB()">Tải</button>
 
-<div id="output"></div>
+<div class="box">
+  <h2>Tải ảnh / video Facebook</h2>
+  <input id="url" placeholder="Dán link Facebook (công khai)">
+  <button onclick="load()">Lấy dữ liệu</button>
+  <div id="result"></div>
+</div>
 
 <script>
-async function downloadFB() {
-    const link = document.getElementById('fbLink').value.trim();
-    const output = document.getElementById('output');
-    output.innerHTML = 'Đang kiểm tra link...';
+function load() {
+  const url = document.getElementById("url").value;
+  document.getElementById("result").innerHTML = "Đang xử lý...";
 
-    // Facebook không cho phép fetch trực tiếp, cần dùng API trung gian.
-    // Ví dụ: dùng dịch vụ miễn phí của 3rd party (chỉ demo)
-    const apiUrl = 'https://fbdownloader.online/api?url=' + encodeURIComponent(link);
-
-    try {
-        const res = await fetch(apiUrl);
-        const data = await res.json();
-
-        if (data.status === 'success') {
-            output.innerHTML = '';
-            if (data.type === 'video') {
-                const video = document.createElement('video');
-                video.src = data.downloadUrl;
-                video.controls = true;
-                output.appendChild(video);
-            } else if (data.type === 'image') {
-                const img = document.createElement('img');
-                img.src = data.downloadUrl;
-                output.appendChild(img);
-            }
-        } else {
-            output.innerHTML = 'Không thể tải. Link có thể không công khai.';
-        }
-    } catch (e) {
-        output.innerHTML = 'Lỗi: ' + e.message;
-    }
+  fetch("download.php?url=" + encodeURIComponent(url))
+    .then(r => r.text())
+    .then(html => document.getElementById("result").innerHTML = html)
+    .catch(() => document.getElementById("result").innerHTML = "Lỗi!");
 }
 </script>
+
 </body>
 </html>
