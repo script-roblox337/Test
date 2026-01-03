@@ -2,103 +2,126 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Camera Nhận Diện Đồ Vật</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Camera Nhận Diện</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
 <style>
-body {
-    background: #111;
-    color: #0f0;
-    text-align: center;
-    font-family: Arial;
+body{
+    background:#000;
+    color:#0f0;
+    font-family:Arial;
+    text-align:center;
 }
-video, canvas {
-    border: 2px solid #0f0;
-    margin-top: 10px;
+video,canvas{
+    width:100%;
+    max-width:360px;
+    border:2px solid #0f0;
 }
-#result {
-    margin-top: 10px;
-    font-size: 16px;
+button{
+    margin:10px;
+    padding:10px 20px;
+    font-size:16px;
+    background:#0f0;
+    border:none;
+    cursor:pointer;
+}
+#info{
+    font-size:14px;
+    text-align:left;
+    max-width:360px;
+    margin:auto;
 }
 </style>
 </head>
 
 <body>
-<h2>📷 AI Nhận Diện Đồ Vật & Giá Trị</h2>
 
-<video id="video" width="320" height="240" autoplay></video>
-<canvas id="canvas" width="320" height="240"></canvas>
+<h2>📷 AI Nhận Diện Đồ Vật</h2>
 
-<div id="result">Đang tải model...</div>
+<button onclick="start()">▶️ BẬT CAMERA</button>
+
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas"></canvas>
+
+<div id="info">Nhấn "BẬT CAMERA" để bắt đầu</div>
 
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const resultDiv = document.getElementById("result");
+const info = document.getElementById("info");
 
-let model;
+let model = null;
 
-// 💰 Bảng giá giả lập
-const priceList = {
-    "cell phone": "5.000.000đ",
-    "laptop": "15.000.000đ",
-    "bottle": "20.000đ",
-    "cup": "15.000đ",
-    "book": "50.000đ",
-    "person": "Không xác định",
-    "keyboard": "300.000đ",
-    "mouse": "150.000đ"
+const PRICE = {
+    "cell phone":"5.000.000đ",
+    "laptop":"15.000.000đ",
+    "bottle":"20.000đ",
+    "cup":"15.000đ",
+    "book":"50.000đ",
+    "keyboard":"300.000đ",
+    "mouse":"150.000đ",
+    "person":"Không xác định"
 };
 
-// 🎥 Mở camera
-navigator.mediaDevices.getUserMedia({ video: true })
-.then(stream => {
+async function start(){
+    info.innerHTML = "⏳ Đang mở camera...";
+    await startCamera();
+    await loadAI();
+}
+
+async function startCamera(){
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:"environment" },
+        audio:false
+    });
     video.srcObject = stream;
-})
-.catch(err => {
-    alert("Không mở được camera!");
-});
 
-// 📦 Load AI model
-cocoSsd.load().then(m => {
-    model = m;
-    resultDiv.innerText = "✅ AI sẵn sàng";
+    video.onloadedmetadata = ()=>{
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    };
+}
+
+async function loadAI(){
+    info.innerHTML = "⏳ Đang tải AI...";
+    model = await cocoSsd.load();
+    info.innerHTML = "✅ AI sẵn sàng";
     detect();
-});
+}
 
-// 🔍 Nhận diện
-async function detect() {
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+async function detect(){
+    if(!model) return;
+
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const predictions = await model.detect(canvas);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
 
-    resultDiv.innerHTML = "";
+    info.innerHTML = "";
 
-    predictions.forEach(p => {
-        const [x, y, w, h] = p.bbox;
+    predictions.forEach(p=>{
+        if(p.score < 0.5) return;
 
-        ctx.strokeStyle = "lime";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, h);
+        const [x,y,w,h] = p.bbox;
+        ctx.strokeStyle="#0f0";
+        ctx.lineWidth=2;
+        ctx.strokeRect(x,y,w,h);
+        ctx.fillStyle="#0f0";
+        ctx.fillText(p.class,x,y-5);
 
-        ctx.fillStyle = "lime";
-        ctx.fillText(p.class, x, y - 5);
-
-        let price = priceList[p.class] || "Chưa có giá";
-
-        resultDiv.innerHTML += `
+        info.innerHTML += `
         📦 <b>${p.class}</b><br>
-        🎯 Độ chính xác: ${(p.score * 100).toFixed(1)}%<br>
-        💰 Giá trị: ${price}<br><br>
+        🎯 ${(p.score*100).toFixed(1)}%<br>
+        💰 ${PRICE[p.class] || "Chưa có giá"}<br><br>
         `;
     });
 
-    requestAnimationFrame(detect);
+    setTimeout(detect,300);
 }
 </script>
 
