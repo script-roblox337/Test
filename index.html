@@ -2,48 +2,103 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Facebook Downloader</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Nhận Diện Đồ Vật</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
 <style>
 body {
-  font-family: Arial;
-  background: #f2f2f2;
-  padding: 20px;
+    background: #111;
+    color: #0f0;
+    text-align: center;
+    font-family: Arial;
 }
-.box {
-  background: #fff;
-  padding: 15px;
-  border-radius: 10px;
+video, canvas {
+    border: 2px solid #0f0;
+    margin-top: 10px;
 }
-input, button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-}
-video, img {
-  max-width: 100%;
-  margin-top: 15px;
+#result {
+    margin-top: 10px;
+    font-size: 16px;
 }
 </style>
 </head>
-<body>
 
-<div class="box">
-  <h2>Tải ảnh / video Facebook</h2>
-  <input id="url" placeholder="Dán link Facebook (công khai)">
-  <button onclick="load()">Lấy dữ liệu</button>
-  <div id="result"></div>
-</div>
+<body>
+<h2>📷 AI Nhận Diện Đồ Vật & Giá Trị</h2>
+
+<video id="video" width="320" height="240" autoplay></video>
+<canvas id="canvas" width="320" height="240"></canvas>
+
+<div id="result">Đang tải model...</div>
 
 <script>
-function load() {
-  const url = document.getElementById("url").value;
-  document.getElementById("result").innerHTML = "Đang xử lý...";
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const resultDiv = document.getElementById("result");
 
-  fetch("download.php?url=" + encodeURIComponent(url))
-    .then(r => r.text())
-    .then(html => document.getElementById("result").innerHTML = html)
-    .catch(() => document.getElementById("result").innerHTML = "Lỗi!");
+let model;
+
+// 💰 Bảng giá giả lập
+const priceList = {
+    "cell phone": "5.000.000đ",
+    "laptop": "15.000.000đ",
+    "bottle": "20.000đ",
+    "cup": "15.000đ",
+    "book": "50.000đ",
+    "person": "Không xác định",
+    "keyboard": "300.000đ",
+    "mouse": "150.000đ"
+};
+
+// 🎥 Mở camera
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+    video.srcObject = stream;
+})
+.catch(err => {
+    alert("Không mở được camera!");
+});
+
+// 📦 Load AI model
+cocoSsd.load().then(m => {
+    model = m;
+    resultDiv.innerText = "✅ AI sẵn sàng";
+    detect();
+});
+
+// 🔍 Nhận diện
+async function detect() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const predictions = await model.detect(canvas);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    resultDiv.innerHTML = "";
+
+    predictions.forEach(p => {
+        const [x, y, w, h] = p.bbox;
+
+        ctx.strokeStyle = "lime";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+
+        ctx.fillStyle = "lime";
+        ctx.fillText(p.class, x, y - 5);
+
+        let price = priceList[p.class] || "Chưa có giá";
+
+        resultDiv.innerHTML += `
+        📦 <b>${p.class}</b><br>
+        🎯 Độ chính xác: ${(p.score * 100).toFixed(1)}%<br>
+        💰 Giá trị: ${price}<br><br>
+        `;
+    });
+
+    requestAnimationFrame(detect);
 }
 </script>
 
